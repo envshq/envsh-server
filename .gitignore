@@ -1,0 +1,38 @@
+# Binaries
+bin/
+dist/
+/server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build artifacts
+*.test
+*.out
+
+# Dependency directories
+vendor/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Go workspace
+go.work
+go.work.sum
+
+# Migration temp files
+*.dirty
