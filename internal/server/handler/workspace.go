@@ -202,14 +202,14 @@ func (h *WorkspaceHandler) InviteMember(w http.ResponseWriter, r *http.Request) 
 		response.InternalError(w)
 		return
 	}
-	if sub != nil && sub.Plan == "free" {
+	if sub != nil && sub.Plan == "free" && h.freeTierSeatMax > 0 {
 		count, err := h.workspaces.GetMemberCount(ctx, workspaceID)
 		if err != nil {
 			response.InternalError(w)
 			return
 		}
 		if count >= h.freeTierSeatMax {
-			response.Error(w, http.StatusForbidden, response.CodePlanLimit, fmt.Sprintf("free plan is limited to %d members, upgrade to add more", h.freeTierSeatMax))
+			response.Error(w, http.StatusForbidden, response.CodePlanLimit, fmt.Sprintf("free plan supports up to %d members — paid plans coming soon, contact support@envsh.dev for early access", h.freeTierSeatMax))
 			return
 		}
 	}
