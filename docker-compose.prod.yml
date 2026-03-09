@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: envsh
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: envsh
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U envsh"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: migrate/migrate:v4.17.0
+    volumes:
+      - ./migrations:/migrations
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://envsh:${DB_PASSWORD}@postgres:5432/envsh?sslmode=disable"
+      - "up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  server:
+    image: ghcr.io/envshq/envsh-server:latest
+    restart: always
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      DATABASE_URL: "postgres://envsh:${DB_PASSWORD}@postgres:5432/envsh?sslmode=disable"
+      REDIS_URL: "redis://redis:6379"
+      JWT_SECRET: "${JWT_SECRET}"
+      SERVER_ADDR: ":8080"
+      LOG_LEVEL: "warn"
+      EMAIL_PROVIDER: "${EMAIL_PROVIDER}"
+      EMAIL_FROM: "${EMAIL_FROM:-noreply@envsh.dev}"
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:
+  redis_data:
