@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -15,14 +16,15 @@ import (
 
 // WorkspaceHandler handles workspace and member endpoints.
 type WorkspaceHandler struct {
-	workspaces store.WorkspaceStore
-	users      store.UserStore
-	audit      store.AuditLogStore
+	workspaces      store.WorkspaceStore
+	users           store.UserStore
+	audit           store.AuditLogStore
+	freeTierSeatMax int
 }
 
 // NewWorkspaceHandler creates a new WorkspaceHandler.
-func NewWorkspaceHandler(workspaces store.WorkspaceStore, users store.UserStore, audit store.AuditLogStore) *WorkspaceHandler {
-	return &WorkspaceHandler{workspaces: workspaces, users: users, audit: audit}
+func NewWorkspaceHandler(workspaces store.WorkspaceStore, users store.UserStore, audit store.AuditLogStore, freeTierSeatMax int) *WorkspaceHandler {
+	return &WorkspaceHandler{workspaces: workspaces, users: users, audit: audit, freeTierSeatMax: freeTierSeatMax}
 }
 
 // Get returns workspace info for the authenticated user.
@@ -206,8 +208,8 @@ func (h *WorkspaceHandler) InviteMember(w http.ResponseWriter, r *http.Request) 
 			response.InternalError(w)
 			return
 		}
-		if count >= 3 {
-			response.Error(w, http.StatusForbidden, response.CodePlanLimit, "free plan is limited to 3 members, upgrade to add more")
+		if count >= h.freeTierSeatMax {
+			response.Error(w, http.StatusForbidden, response.CodePlanLimit, fmt.Sprintf("free plan is limited to %d members, upgrade to add more", h.freeTierSeatMax))
 			return
 		}
 	}

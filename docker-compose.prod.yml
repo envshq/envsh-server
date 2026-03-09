@@ -53,6 +53,7 @@ services:
       EMAIL_PROVIDER: "${EMAIL_PROVIDER}"
       EMAIL_FROM: "${EMAIL_FROM:-noreply@envsh.dev}"
       RESEND_API_KEY: "${RESEND_API_KEY:-}"
+      FREE_TIER_SEAT_MAX: "${FREE_TIER_SEAT_MAX:-5}"
     depends_on:
       postgres:
         condition: service_healthy

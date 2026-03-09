@@ -68,7 +68,7 @@ func main() {
 	}
 
 	// Build router
-	h := router.New(stores, services, redisClient, logger)
+	h := router.New(stores, services, redisClient, logger, cfg)
 
 	srv := &http.Server{
 		Addr:         cfg.ServerAddr,

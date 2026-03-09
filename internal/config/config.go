@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // Config holds all environment-variable-based configuration for the server.
@@ -15,7 +16,8 @@ type Config struct {
 	LogFormat     string
 	EmailProvider string
 	EmailFrom     string
-	ResendAPIKey  string
+	ResendAPIKey    string
+	FreeTierSeatMax int
 }
 
 // Load reads configuration from environment variables and validates required fields.
@@ -29,7 +31,8 @@ func Load() (*Config, error) {
 		LogFormat:     getEnvDefault("LOG_FORMAT", "json"),
 		EmailProvider: getEnvDefault("EMAIL_PROVIDER", "console"),
 		EmailFrom:     getEnvDefault("EMAIL_FROM", "noreply@envsh.dev"),
-		ResendAPIKey:  os.Getenv("RESEND_API_KEY"),
+		ResendAPIKey:    os.Getenv("RESEND_API_KEY"),
+		FreeTierSeatMax: getEnvDefaultInt("FREE_TIER_SEAT_MAX", 5),
 	}
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
@@ -46,6 +49,15 @@ func Load() (*Config, error) {
 func getEnvDefault(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return def
+}
+
+func getEnvDefaultInt(key string, def int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
 	}
 	return def
 }

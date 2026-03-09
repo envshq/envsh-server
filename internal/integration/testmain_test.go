@@ -23,6 +23,7 @@ import (
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 
 	internalauth "github.com/envshq/envsh-server/internal/auth"
+	"github.com/envshq/envsh-server/internal/config"
 	"github.com/envshq/envsh-server/internal/server/router"
 	"github.com/envshq/envsh-server/internal/store/postgres"
 	redistore "github.com/envshq/envsh-server/internal/store/redis"
@@ -185,7 +186,8 @@ func buildTestServer(db *pgxpool.Pool, redisClient *redis.Client) *httptest.Serv
 		Machine: machineSvc,
 	}
 
-	h := router.New(stores, services, redisClient, logger)
+	testCfg := &config.Config{FreeTierSeatMax: 5}
+	h := router.New(stores, services, redisClient, logger, testCfg)
 	return httptest.NewServer(h)
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/envshq/envsh-server/internal/auth"
+	"github.com/envshq/envsh-server/internal/config"
 	"github.com/envshq/envsh-server/internal/server/handler"
 	"github.com/envshq/envsh-server/internal/server/middleware"
 	"github.com/envshq/envsh-server/internal/store"
@@ -40,7 +41,7 @@ const (
 )
 
 // New builds and returns the chi router with all routes registered.
-func New(stores Stores, services Services, redisClient *redis.Client, logger *slog.Logger) http.Handler {
+func New(stores Stores, services Services, redisClient *redis.Client, logger *slog.Logger, cfg *config.Config) http.Handler {
 	r := chi.NewRouter()
 
 	// Global middleware
@@ -93,7 +94,7 @@ func New(stores Stores, services Services, redisClient *redis.Client, logger *sl
 		r.Use(requireHuman)
 
 		// Workspace
-		wsH := handler.NewWorkspaceHandler(stores.Workspaces, stores.Users, stores.Audit)
+		wsH := handler.NewWorkspaceHandler(stores.Workspaces, stores.Users, stores.Audit, cfg.FreeTierSeatMax)
 		r.Get("/workspace", wsH.Get)
 		r.Patch("/workspace", wsH.Update)
 		r.Get("/workspace/members", wsH.ListMembers)
