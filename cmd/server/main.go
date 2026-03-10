@@ -57,7 +57,14 @@ func main() {
 	// Auth services
 	redisAuthStore := redistore.NewAuthStore(redisClient)
 	jwtSvc := auth.NewJWTService(cfg.JWTSecret, redisAuthStore)
-	var emailSender auth.EmailSender = &auth.ConsoleEmailSender{}
+	var emailSender auth.EmailSender
+	if cfg.EmailProvider == "resend" && cfg.ResendAPIKey != "" {
+		emailSender = auth.NewResendEmailSender(cfg.ResendAPIKey, cfg.EmailFrom)
+		logger.Info("email provider: resend", "from", cfg.EmailFrom)
+	} else {
+		emailSender = &auth.ConsoleEmailSender{}
+		logger.Info("email provider: console (codes logged to stdout)")
+	}
 	emailSvc := auth.NewEmailAuthService(redisAuthStore, emailSender)
 	machineSvc := auth.NewMachineAuthService(redisAuthStore, jwtSvc)
 
