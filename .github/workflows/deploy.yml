@@ -2,7 +2,13 @@ name: Build & Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (default: latest)'
+        required: false
+        default: 'latest'
 
 env:
   REGISTRY: ghcr.io
@@ -48,3 +54,24 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+  deploy:
+    needs: build-and-push
+    if: always() && (needs.build-and-push.result == 'success' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
+    steps:
+      - uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/envsh
+            git pull origin main
+            export SERVER_IMG_TAG=${{ env.DEPLOY_TAG }}
+            docker compose -f docker-compose.prod.yml pull server
+            docker compose -f docker-compose.prod.yml rm -f -s migrate
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f
