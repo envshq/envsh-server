@@ -231,16 +231,9 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If refresh token has a workspace_id, verify user is still a member.
-	// Fall back to owned workspace if not (removed from workspace, or old token format).
-	if workspaceID != uuid.Nil {
-		_, err := h.workspaces.GetMember(ctx, workspaceID, userID)
-		if err != nil {
-			// User was removed from this workspace, fall back to their own
-			workspaceID = uuid.Nil
-		}
-	}
-	if workspaceID == uuid.Nil {
+	// Verify user is still a member of the workspace. Fall back to owned workspace if removed.
+	_, err = h.workspaces.GetMember(ctx, workspaceID, userID)
+	if err != nil {
 		workspace, err := h.workspaces.GetWorkspaceByOwner(ctx, user.ID)
 		if err != nil {
 			response.InternalError(w)

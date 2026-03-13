@@ -167,7 +167,6 @@ func (s *JWTService) VerifyMachineToken(tokenStr string) (*MachineClaims, error)
 
 // ValidateAndConsumeRefreshToken validates a refresh token and returns the userID and workspaceID.
 // The refresh token is deleted (consumed) after this call. Callers must re-issue.
-// Backward compatible: old tokens without workspace_id return uuid.Nil for workspaceID.
 func (s *JWTService) ValidateAndConsumeRefreshToken(ctx context.Context, refreshToken string) (uuid.UUID, uuid.UUID, error) {
 	stored, err := s.authStore.GetRefreshToken(ctx, refreshToken)
 	if err != nil {
@@ -178,14 +177,18 @@ func (s *JWTService) ValidateAndConsumeRefreshToken(ctx context.Context, refresh
 	}
 
 	parts := strings.SplitN(stored, "|", 2)
+	if len(parts) != 2 {
+		return uuid.Nil, uuid.Nil, fmt.Errorf("invalid refresh token format")
+	}
+
 	userID, err := uuid.Parse(parts[0])
 	if err != nil {
 		return uuid.Nil, uuid.Nil, fmt.Errorf("parsing user ID from refresh token: %w", err)
 	}
 
-	var workspaceID uuid.UUID
-	if len(parts) == 2 {
-		workspaceID, _ = uuid.Parse(parts[1])
+	workspaceID, err := uuid.Parse(parts[1])
+	if err != nil {
+		return uuid.Nil, uuid.Nil, fmt.Errorf("parsing workspace ID from refresh token: %w", err)
 	}
 
 	if err := s.authStore.DeleteRefreshToken(ctx, refreshToken); err != nil {
