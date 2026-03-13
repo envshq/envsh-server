@@ -94,7 +94,9 @@ func New(stores Stores, services Services, redisClient *redis.Client, logger *sl
 		r.Use(requireHuman)
 
 		// Workspace
-		wsH := handler.NewWorkspaceHandler(stores.Workspaces, stores.Users, stores.Audit, cfg.FreeTierSeatMax)
+		wsH := handler.NewWorkspaceHandler(stores.Workspaces, stores.Users, stores.Audit, services.JWT, cfg.FreeTierSeatMax)
+		r.Get("/workspaces", wsH.ListWorkspaces)
+		r.Post("/workspaces/switch", wsH.SwitchWorkspace)
 		r.Get("/workspace", wsH.Get)
 		r.Patch("/workspace", wsH.Update)
 		r.Get("/workspace/members", wsH.ListMembers)

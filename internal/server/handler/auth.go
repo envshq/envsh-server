@@ -191,6 +191,11 @@ func (h *AuthHandler) EmailVerify(w http.ResponseWriter, r *http.Request) {
 			"id":    user.ID,
 			"email": user.Email,
 		},
+		"workspace": map[string]any{
+			"id":   workspace.ID,
+			"name": workspace.Name,
+			"slug": workspace.Slug,
+		},
 	})
 }
 
@@ -214,7 +219,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	userID, err := h.jwt.ValidateAndConsumeRefreshToken(ctx, req.RefreshToken)
+	userID, workspaceID, err := h.jwt.ValidateAndConsumeRefreshToken(ctx, req.RefreshToken)
 	if err != nil {
 		response.Unauthorized(w, "invalid or expired refresh token")
 		return
@@ -226,13 +231,25 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workspace, err := h.workspaces.GetWorkspaceByOwner(ctx, user.ID)
-	if err != nil {
-		response.InternalError(w)
-		return
+	// If refresh token has a workspace_id, verify user is still a member.
+	// Fall back to owned workspace if not (removed from workspace, or old token format).
+	if workspaceID != uuid.Nil {
+		_, err := h.workspaces.GetMember(ctx, workspaceID, userID)
+		if err != nil {
+			// User was removed from this workspace, fall back to their own
+			workspaceID = uuid.Nil
+		}
+	}
+	if workspaceID == uuid.Nil {
+		workspace, err := h.workspaces.GetWorkspaceByOwner(ctx, user.ID)
+		if err != nil {
+			response.InternalError(w)
+			return
+		}
+		workspaceID = workspace.ID
 	}
 
-	tokens, err := h.jwt.IssueHumanTokens(ctx, user.ID, user.Email, workspace.ID)
+	tokens, err := h.jwt.IssueHumanTokens(ctx, user.ID, user.Email, workspaceID)
 	if err != nil {
 		response.InternalError(w)
 		return

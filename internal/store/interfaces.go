@@ -20,6 +20,7 @@ type WorkspaceStore interface {
 	GetWorkspaceByID(ctx context.Context, id uuid.UUID) (*model.Workspace, error)
 	GetWorkspaceByOwner(ctx context.Context, ownerID uuid.UUID) (*model.Workspace, error)
 	GetWorkspaceByMember(ctx context.Context, userID uuid.UUID) (*model.Workspace, error)
+	ListWorkspacesByUser(ctx context.Context, userID uuid.UUID) ([]model.WorkspaceMembership, error)
 	UpdateWorkspaceName(ctx context.Context, id uuid.UUID, name string) error
 	AddMember(ctx context.Context, workspaceID, userID uuid.UUID, role string, invitedBy *uuid.UUID) (*model.WorkspaceMember, error)
 	RemoveMember(ctx context.Context, workspaceID, userID uuid.UUID) error

@@ -100,6 +100,35 @@ func (s *WorkspaceStore) GetWorkspaceByMember(ctx context.Context, userID uuid.U
 	return &w, nil
 }
 
+// ListWorkspacesByUser returns all workspaces the user is a member of, with their role.
+func (s *WorkspaceStore) ListWorkspacesByUser(ctx context.Context, userID uuid.UUID) ([]model.WorkspaceMembership, error) {
+	rows, err := s.db.Query(ctx,
+		`SELECT w.id, w.owner_id, w.name, w.slug, wm.role, w.created_at
+		 FROM workspaces w
+		 JOIN workspace_members wm ON wm.workspace_id = w.id
+		 WHERE wm.user_id = $1
+		 ORDER BY w.created_at ASC`,
+		userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing workspaces by user: %w", err)
+	}
+	defer rows.Close()
+
+	var memberships []model.WorkspaceMembership
+	for rows.Next() {
+		var m model.WorkspaceMembership
+		if err := rows.Scan(&m.WorkspaceID, &m.OwnerID, &m.Name, &m.Slug, &m.Role, &m.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scanning workspace membership: %w", err)
+		}
+		memberships = append(memberships, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating workspace memberships: %w", err)
+	}
+	return memberships, nil
+}
+
 // UpdateWorkspaceName changes the display name of a workspace.
 func (s *WorkspaceStore) UpdateWorkspaceName(ctx context.Context, id uuid.UUID, name string) error {
 	_, err := s.db.Exec(ctx,

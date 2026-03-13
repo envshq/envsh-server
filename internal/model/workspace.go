@@ -15,6 +15,16 @@ type Workspace struct {
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
 
+// WorkspaceMembership is a workspace with the user's role, used for listing a user's workspaces.
+type WorkspaceMembership struct {
+	WorkspaceID uuid.UUID `json:"workspace_id"`
+	OwnerID     uuid.UUID `json:"owner_id"`
+	Name        string    `json:"name"`
+	Slug        string    `json:"slug"`
+	Role        string    `json:"role"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 // WorkspaceMember represents a user's membership in a workspace.
 type WorkspaceMember struct {
 	ID          uuid.UUID  `db:"id"           json:"id"`

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -81,8 +82,8 @@ func (s *JWTService) IssueHumanTokens(ctx context.Context, userID uuid.UUID, ema
 		return nil, fmt.Errorf("generating refresh token: %w", err)
 	}
 
-	// Store refresh token hash → userID in Redis (30d TTL)
-	if err := s.authStore.StoreRefreshToken(ctx, refreshToken, userID.String()); err != nil {
+	// Store refresh token hash → userID|workspaceID in Redis (30d TTL)
+	if err := s.authStore.StoreRefreshToken(ctx, refreshToken, userID.String()+"|"+workspaceID.String()); err != nil {
 		return nil, fmt.Errorf("storing refresh token: %w", err)
 	}
 
@@ -164,27 +165,34 @@ func (s *JWTService) VerifyMachineToken(tokenStr string) (*MachineClaims, error)
 	return claims, nil
 }
 
-// ValidateAndConsumeRefreshToken validates a refresh token and returns the userID.
-// The refresh token is deleted (consumed) after this call — callers must re-issue.
-func (s *JWTService) ValidateAndConsumeRefreshToken(ctx context.Context, refreshToken string) (uuid.UUID, error) {
-	userIDStr, err := s.authStore.GetRefreshToken(ctx, refreshToken)
+// ValidateAndConsumeRefreshToken validates a refresh token and returns the userID and workspaceID.
+// The refresh token is deleted (consumed) after this call. Callers must re-issue.
+// Backward compatible: old tokens without workspace_id return uuid.Nil for workspaceID.
+func (s *JWTService) ValidateAndConsumeRefreshToken(ctx context.Context, refreshToken string) (uuid.UUID, uuid.UUID, error) {
+	stored, err := s.authStore.GetRefreshToken(ctx, refreshToken)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			return uuid.Nil, ErrInvalidToken
+			return uuid.Nil, uuid.Nil, ErrInvalidToken
 		}
-		return uuid.Nil, fmt.Errorf("getting refresh token: %w", err)
+		return uuid.Nil, uuid.Nil, fmt.Errorf("getting refresh token: %w", err)
 	}
 
-	userID, err := uuid.Parse(userIDStr)
+	parts := strings.SplitN(stored, "|", 2)
+	userID, err := uuid.Parse(parts[0])
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("parsing user ID from refresh token: %w", err)
+		return uuid.Nil, uuid.Nil, fmt.Errorf("parsing user ID from refresh token: %w", err)
+	}
+
+	var workspaceID uuid.UUID
+	if len(parts) == 2 {
+		workspaceID, _ = uuid.Parse(parts[1])
 	}
 
 	if err := s.authStore.DeleteRefreshToken(ctx, refreshToken); err != nil {
-		return uuid.Nil, fmt.Errorf("deleting refresh token: %w", err)
+		return uuid.Nil, uuid.Nil, fmt.Errorf("deleting refresh token: %w", err)
 	}
 
-	return userID, nil
+	return userID, workspaceID, nil
 }
 
 // RevokeRefreshToken invalidates a refresh token (logout).

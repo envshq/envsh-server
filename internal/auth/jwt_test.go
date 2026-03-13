@@ -196,16 +196,19 @@ func TestValidateAndConsumeRefreshToken(t *testing.T) {
 	}
 
 	// First use — should succeed
-	gotUserID, err := svc.ValidateAndConsumeRefreshToken(ctx, pair.RefreshToken)
+	gotUserID, gotWorkspaceID, err := svc.ValidateAndConsumeRefreshToken(ctx, pair.RefreshToken)
 	if err != nil {
 		t.Fatalf("ValidateAndConsumeRefreshToken: %v", err)
 	}
 	if gotUserID != userID {
 		t.Errorf("expected userID=%s, got %s", userID, gotUserID)
 	}
+	if gotWorkspaceID != workspaceID {
+		t.Errorf("expected workspaceID=%s, got %s", workspaceID, gotWorkspaceID)
+	}
 
 	// Second use — token should be deleted → ErrInvalidToken
-	_, err = svc.ValidateAndConsumeRefreshToken(ctx, pair.RefreshToken)
+	_, _, err = svc.ValidateAndConsumeRefreshToken(ctx, pair.RefreshToken)
 	if !errors.Is(err, ErrInvalidToken) {
 		t.Errorf("expected ErrInvalidToken on second use, got: %v", err)
 	}

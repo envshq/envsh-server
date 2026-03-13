@@ -9,7 +9,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/envshq/envsh-server/internal/auth"
 	"github.com/envshq/envsh-server/internal/model"
+	"github.com/envshq/envsh-server/internal/server/middleware"
 	"github.com/envshq/envsh-server/internal/server/response"
 	"github.com/envshq/envsh-server/internal/store"
 )
@@ -19,12 +21,13 @@ type WorkspaceHandler struct {
 	workspaces      store.WorkspaceStore
 	users           store.UserStore
 	audit           store.AuditLogStore
+	jwt             *auth.JWTService
 	freeTierSeatMax int
 }
 
 // NewWorkspaceHandler creates a new WorkspaceHandler.
-func NewWorkspaceHandler(workspaces store.WorkspaceStore, users store.UserStore, audit store.AuditLogStore, freeTierSeatMax int) *WorkspaceHandler {
-	return &WorkspaceHandler{workspaces: workspaces, users: users, audit: audit, freeTierSeatMax: freeTierSeatMax}
+func NewWorkspaceHandler(workspaces store.WorkspaceStore, users store.UserStore, audit store.AuditLogStore, jwt *auth.JWTService, freeTierSeatMax int) *WorkspaceHandler {
+	return &WorkspaceHandler{workspaces: workspaces, users: users, audit: audit, jwt: jwt, freeTierSeatMax: freeTierSeatMax}
 }
 
 // Get returns workspace info for the authenticated user.
@@ -298,4 +301,88 @@ func (h *WorkspaceHandler) RemoveMember(w http.ResponseWriter, r *http.Request) 
 	})
 
 	response.JSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// ListWorkspaces returns all workspaces the authenticated user belongs to.
+//
+// GET /workspaces
+func (h *WorkspaceHandler) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.HumanClaimsFrom(r.Context())
+	if claims == nil {
+		response.Unauthorized(w, "authentication required")
+		return
+	}
+	userID, err := uuid.Parse(claims.Subject)
+	if err != nil {
+		response.Unauthorized(w, "invalid token")
+		return
+	}
+
+	workspaces, err := h.workspaces.ListWorkspacesByUser(r.Context(), userID)
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]any{
+		"workspaces":           workspaces,
+		"current_workspace_id": claims.WorkspaceID,
+	})
+}
+
+// switchWorkspaceRequest is the request body for POST /workspaces/switch.
+type switchWorkspaceRequest struct {
+	WorkspaceID string `json:"workspace_id"`
+}
+
+// SwitchWorkspace issues new tokens scoped to a different workspace.
+// The user must be a member of the target workspace.
+//
+// POST /workspaces/switch
+func (h *WorkspaceHandler) SwitchWorkspace(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.HumanClaimsFrom(r.Context())
+	if claims == nil {
+		response.Unauthorized(w, "authentication required")
+		return
+	}
+	userID, err := uuid.Parse(claims.Subject)
+	if err != nil {
+		response.Unauthorized(w, "invalid token")
+		return
+	}
+
+	var req switchWorkspaceRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	targetID, err := uuid.Parse(req.WorkspaceID)
+	if err != nil {
+		response.BadRequest(w, "invalid workspace_id")
+		return
+	}
+
+	ctx := r.Context()
+
+	// Verify user is a member of the target workspace
+	_, err = h.workspaces.GetMember(ctx, targetID, userID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			response.Forbidden(w, "not a member of this workspace")
+			return
+		}
+		response.InternalError(w)
+		return
+	}
+
+	tokens, err := h.jwt.IssueHumanTokens(ctx, userID, claims.Email, targetID)
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]any{
+		"token":         tokens.AccessToken,
+		"refresh_token": tokens.RefreshToken,
+		"workspace_id":  targetID,
+	})
 }
