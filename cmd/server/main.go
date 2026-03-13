@@ -11,12 +11,19 @@ import (
 
 	"github.com/envshq/envsh-server/internal/auth"
 	"github.com/envshq/envsh-server/internal/config"
+	"github.com/envshq/envsh-server/internal/server/handler"
 	"github.com/envshq/envsh-server/internal/server/router"
 	"github.com/envshq/envsh-server/internal/store/postgres"
 	redistore "github.com/envshq/envsh-server/internal/store/redis"
 )
 
+// Version is set at build time via ldflags:
+//
+//	go build -ldflags "-X main.Version=0.2.0"
+var Version = "dev"
+
 func main() {
+	handler.BuildVersion = Version
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	cfg, err := config.Load()

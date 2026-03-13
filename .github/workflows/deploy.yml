@@ -65,6 +65,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
 
   deploy:
     needs: build-and-push
