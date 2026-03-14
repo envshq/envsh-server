@@ -167,13 +167,14 @@ func TestVerifyHumanToken_Tampered(t *testing.T) {
 		t.Fatalf("IssueHumanTokens: %v", err)
 	}
 
-	// Flip last character to break signature
+	// Flip a character in the middle of the signature to break it.
+	// Avoid the last character — base64url padding bits may not change the decoded value.
 	tokenBytes := []byte(pair.AccessToken)
-	last := len(tokenBytes) - 1
-	if tokenBytes[last] == 'a' {
-		tokenBytes[last] = 'b'
+	pos := len(tokenBytes) - 5
+	if tokenBytes[pos] == 'A' {
+		tokenBytes[pos] = 'B'
 	} else {
-		tokenBytes[last] = 'a'
+		tokenBytes[pos] = 'A'
 	}
 
 	_, err = svc.VerifyHumanToken(string(tokenBytes))
