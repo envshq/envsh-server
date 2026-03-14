@@ -87,16 +87,24 @@ func New(stores Stores, services Services, redisClient *redis.Client, logger *sl
 	r.Post("/auth/machine-verify", authH.MachineVerify)
 
 	requireHuman := middleware.RequireHuman(services.JWT)
+	requireNotRevoked := middleware.RequireNotRevoked(services.JWT)
 	requireHumanOrMachine := middleware.RequireHumanOrMachine(services.JWT)
 
-	// Human-only authenticated routes
+	wsH := handler.NewWorkspaceHandler(stores.Workspaces, stores.Users, stores.Audit, services.JWT, cfg.FreeTierSeatMax)
+
+	// User-level routes — valid JWT required, but no member revocation check.
+	// A removed member must be able to list workspaces and switch away.
 	r.Group(func(r chi.Router) {
 		r.Use(requireHuman)
-
-		// Workspace
-		wsH := handler.NewWorkspaceHandler(stores.Workspaces, stores.Users, stores.Audit, services.JWT, cfg.FreeTierSeatMax)
 		r.Get("/workspaces", wsH.ListWorkspaces)
 		r.Post("/workspaces/switch", wsH.SwitchWorkspace)
+	})
+
+	// Workspace-scoped human routes — requires active membership.
+	r.Group(func(r chi.Router) {
+		r.Use(requireHuman)
+		r.Use(requireNotRevoked)
+
 		r.Get("/workspace", wsH.Get)
 		r.Patch("/workspace", wsH.Update)
 		r.Get("/workspace/members", wsH.ListMembers)
@@ -128,9 +136,10 @@ func New(stores Stores, services Services, redisClient *redis.Client, logger *sl
 		r.Get("/audit", auditH.List)
 	})
 
-	// Human or machine authenticated routes
+	// Human or machine authenticated routes — also requires active membership for humans.
 	r.Group(func(r chi.Router) {
 		r.Use(requireHumanOrMachine)
+		r.Use(requireNotRevoked)
 
 		secretH := handler.NewSecretHandler(
 			stores.Secrets,

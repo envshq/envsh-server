@@ -40,12 +40,6 @@ func RequireHuman(jwtSvc *auth.JWTService) func(http.Handler) http.Handler {
 				response.Unauthorized(w, "invalid or expired token")
 				return
 			}
-			// Check member revocation (instant removal).
-			memberRevoked, err := jwtSvc.IsMemberRevoked(r.Context(), claims.WorkspaceID.String(), claims.Subject)
-			if err != nil || memberRevoked {
-				response.Unauthorized(w, "access revoked")
-				return
-			}
 			ctx := context.WithValue(r.Context(), HumanClaimsKey, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -97,11 +91,6 @@ func RequireHumanOrMachine(jwtSvc *auth.JWTService) func(http.Handler) http.Hand
 					response.Unauthorized(w, "invalid or expired token")
 					return
 				}
-				memberRevoked, err := jwtSvc.IsMemberRevoked(r.Context(), humanClaims.WorkspaceID.String(), humanClaims.Subject)
-				if err != nil || memberRevoked {
-					response.Unauthorized(w, "access revoked")
-					return
-				}
 				ctx := context.WithValue(r.Context(), HumanClaimsKey, humanClaims)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
@@ -118,6 +107,24 @@ func RequireHumanOrMachine(jwtSvc *auth.JWTService) func(http.Handler) http.Hand
 				return
 			}
 			response.Unauthorized(w, "invalid or expired token")
+		})
+	}
+}
+
+// RequireNotRevoked checks that the human user hasn't been removed from their workspace.
+// Must be stacked after RequireHuman or RequireHumanOrMachine.
+// User-level routes (workspace list/switch) should NOT use this middleware.
+func RequireNotRevoked(jwtSvc *auth.JWTService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if claims := HumanClaimsFrom(r.Context()); claims != nil {
+				revoked, err := jwtSvc.IsMemberRevoked(r.Context(), claims.WorkspaceID.String(), claims.Subject)
+				if err != nil || revoked {
+					response.Unauthorized(w, "access revoked")
+					return
+				}
+			}
+			next.ServeHTTP(w, r)
 		})
 	}
 }
