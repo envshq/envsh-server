@@ -278,10 +278,12 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 // machineChallengeRequest is the request body for POST /auth/machine-challenge.
 type machineChallengeRequest struct {
-	MachineID string `json:"machine_id"`
+	MachineID   string `json:"machine_id"`
+	Fingerprint string `json:"fingerprint"`
 }
 
 // MachineChallenge generates a nonce challenge for a machine.
+// Accepts either machine_id (UUID) or fingerprint to identify the machine.
 //
 // POST /auth/machine-challenge
 func (h *AuthHandler) MachineChallenge(w http.ResponseWriter, r *http.Request) {
@@ -289,21 +291,26 @@ func (h *AuthHandler) MachineChallenge(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	if req.MachineID == "" {
-		response.BadRequest(w, "machine_id is required")
-		return
-	}
-
-	machineID, err := uuid.Parse(req.MachineID)
-	if err != nil {
-		response.BadRequest(w, "invalid machine_id")
-		return
-	}
 
 	ctx := r.Context()
 
-	// Verify the machine exists and is active
-	m, err := h.machines.GetMachineByID(ctx, machineID)
+	var m *model.Machine
+	var err error
+
+	if req.Fingerprint != "" {
+		m, err = h.machines.GetMachineByFingerprint(ctx, req.Fingerprint)
+	} else if req.MachineID != "" {
+		machineID, parseErr := uuid.Parse(req.MachineID)
+		if parseErr != nil {
+			response.BadRequest(w, "invalid machine_id")
+			return
+		}
+		m, err = h.machines.GetMachineByID(ctx, machineID)
+	} else {
+		response.BadRequest(w, "machine_id or fingerprint is required")
+		return
+	}
+
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			response.NotFound(w)
@@ -317,13 +324,13 @@ func (h *AuthHandler) MachineChallenge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nonce, err := h.machine.GenerateChallenge(ctx, machineID)
+	nonce, err := h.machine.GenerateChallenge(ctx, m.ID)
 	if err != nil {
 		response.InternalError(w)
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]any{"nonce": nonce})
+	response.JSON(w, http.StatusOK, map[string]any{"nonce": nonce, "machine_id": m.ID})
 }
 
 // machineVerifyRequest is the request body for POST /auth/machine-verify.
