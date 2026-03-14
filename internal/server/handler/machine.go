@@ -73,10 +73,10 @@ func (h *MachineHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Name = strings.TrimSpace(req.Name)
-	req.Slug = strings.TrimSpace(strings.ToLower(req.Slug))
+	req.Slug = uuid.New().String()
 	req.Environment = strings.TrimSpace(req.Environment)
-	if req.Name == "" || req.Slug == "" || req.ProjectID == "" || req.Environment == "" || req.PublicKey == "" {
-		response.BadRequest(w, "name, slug, project_id, environment, and public_key are required")
+	if req.Name == "" || req.ProjectID == "" || req.Environment == "" || req.PublicKey == "" {
+		response.BadRequest(w, "name, project_id, environment, and public_key are required")
 		return
 	}
 
