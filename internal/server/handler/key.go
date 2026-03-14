@@ -15,13 +15,14 @@ import (
 
 // KeyHandler handles SSH key endpoints.
 type KeyHandler struct {
-	keys  store.KeyStore
-	audit store.AuditLogStore
+	keys     store.KeyStore
+	machines store.MachineStore
+	audit    store.AuditLogStore
 }
 
 // NewKeyHandler creates a new KeyHandler.
-func NewKeyHandler(keys store.KeyStore, audit store.AuditLogStore) *KeyHandler {
-	return &KeyHandler{keys: keys, audit: audit}
+func NewKeyHandler(keys store.KeyStore, machines store.MachineStore, audit store.AuditLogStore) *KeyHandler {
+	return &KeyHandler{keys: keys, machines: machines, audit: audit}
 }
 
 // List returns all SSH keys for the authenticated user.
@@ -165,7 +166,8 @@ func (h *KeyHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-// ListWorkspaceKeys returns all non-revoked SSH keys for all members in the workspace.
+// ListWorkspaceKeys returns all non-revoked SSH keys for all members in the workspace,
+// plus active machine keys (so pushers encrypt for machines too).
 //
 // GET /keys/workspace
 func (h *KeyHandler) ListWorkspaceKeys(w http.ResponseWriter, r *http.Request) {
@@ -174,13 +176,41 @@ func (h *KeyHandler) ListWorkspaceKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keys, err := h.keys.ListKeysByWorkspace(r.Context(), workspaceID)
+	ctx := r.Context()
+
+	keys, err := h.keys.ListKeysByWorkspace(ctx, workspaceID)
 	if err != nil {
 		response.InternalError(w)
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]any{"keys": keys})
+	machines, err := h.machines.ListMachines(ctx, workspaceID)
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+
+	// Filter to active machines only.
+	type machineKeyEntry struct {
+		ID             string `json:"id"`
+		PublicKey      string `json:"public_key"`
+		KeyFingerprint string `json:"key_fingerprint"`
+	}
+	var machineKeys []machineKeyEntry
+	for _, m := range machines {
+		if m.Status == "active" {
+			machineKeys = append(machineKeys, machineKeyEntry{
+				ID:             m.ID.String(),
+				PublicKey:      m.PublicKey,
+				KeyFingerprint: m.KeyFingerprint,
+			})
+		}
+	}
+
+	response.JSON(w, http.StatusOK, map[string]any{
+		"keys":         keys,
+		"machine_keys": machineKeys,
+	})
 }
 
 // inferKeyType infers the key type from the SSH public key string prefix.
