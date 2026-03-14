@@ -32,7 +32,7 @@ func Load() (*Config, error) {
 		EmailProvider: getEnvDefault("EMAIL_PROVIDER", "console"),
 		EmailFrom:     getEnvDefault("EMAIL_FROM", "noreply@envsh.dev"),
 		ResendAPIKey:    os.Getenv("RESEND_API_KEY"),
-		FreeTierSeatMax: getEnvDefaultInt("FREE_TIER_SEAT_MAX", 5),
+		FreeTierSeatMax: getEnvDefaultInt("FREE_TIER_SEAT_MAX", 0),
 	}
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")

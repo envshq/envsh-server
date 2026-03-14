@@ -235,8 +235,8 @@ func TestWorkspaceStore_CreateSubscription_GetSubscription(t *testing.T) {
 	if sub.Plan != "free" {
 		t.Errorf("expected plan %q, got %q", "free", sub.Plan)
 	}
-	if sub.SeatCount != 3 {
-		t.Errorf("expected seat_count 3, got %d", sub.SeatCount)
+	if sub.SeatCount != 0 {
+		t.Errorf("expected seat_count 0, got %d", sub.SeatCount)
 	}
 
 	got, err := ws.GetSubscription(ctx, w.ID)

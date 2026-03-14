@@ -265,7 +265,7 @@ func (s *WorkspaceStore) CreateSubscription(ctx context.Context, workspaceID uui
 	var sub model.Subscription
 	err := s.db.QueryRow(ctx,
 		`INSERT INTO subscriptions (id, workspace_id, plan, seat_count)
-		 VALUES ($1, $2, 'free', 5)
+		 VALUES ($1, $2, 'free', 0)
 		 RETURNING id, workspace_id, plan, seat_count, stripe_customer_id, stripe_subscription_id, status, created_at`,
 		id, workspaceID,
 	).Scan(

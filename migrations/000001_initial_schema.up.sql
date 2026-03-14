@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id            UUID NOT NULL UNIQUE REFERENCES workspaces(id),
     plan                    TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'team')),
-    seat_count              INT NOT NULL DEFAULT 5,
+    seat_count              INT NOT NULL DEFAULT 0,
     stripe_customer_id      TEXT,
     stripe_subscription_id  TEXT,
     status                  TEXT NOT NULL DEFAULT 'active',
