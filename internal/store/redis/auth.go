@@ -224,6 +224,33 @@ func (s *AuthStore) IsJTIRevoked(ctx context.Context, jti string) (bool, error) 
 	return val > 0, nil
 }
 
+// --- Member revocation operations ---
+
+// revokedMemberKey returns the Redis key for a revoked workspace member.
+// Format: "revoked-member:{workspaceID}:{userID}"
+func revokedMemberKey(workspaceID, userID string) string {
+	return fmt.Sprintf("revoked-member:%s:%s", workspaceID, userID)
+}
+
+// RevokeMemberAccess marks a member as revoked with a TTL matching JWT expiry.
+func (s *AuthStore) RevokeMemberAccess(ctx context.Context, workspaceID, userID string, ttl time.Duration) error {
+	key := revokedMemberKey(workspaceID, userID)
+	if err := s.client.Set(ctx, key, "1", ttl).Err(); err != nil {
+		return fmt.Errorf("revoking member access: %w", err)
+	}
+	return nil
+}
+
+// IsMemberRevoked checks whether a workspace member has been revoked.
+func (s *AuthStore) IsMemberRevoked(ctx context.Context, workspaceID, userID string) (bool, error) {
+	key := revokedMemberKey(workspaceID, userID)
+	val, err := s.client.Exists(ctx, key).Result()
+	if err != nil {
+		return false, fmt.Errorf("checking member revocation: %w", err)
+	}
+	return val > 0, nil
+}
+
 // --- Brute-force lockout operations ---
 
 // emailFailureKey returns the Redis key for a rolling failure count per email.

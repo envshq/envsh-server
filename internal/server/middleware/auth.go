@@ -40,6 +40,12 @@ func RequireHuman(jwtSvc *auth.JWTService) func(http.Handler) http.Handler {
 				response.Unauthorized(w, "invalid or expired token")
 				return
 			}
+			// Check member revocation (instant removal).
+			memberRevoked, err := jwtSvc.IsMemberRevoked(r.Context(), claims.WorkspaceID.String(), claims.Subject)
+			if err != nil || memberRevoked {
+				response.Unauthorized(w, "access revoked")
+				return
+			}
 			ctx := context.WithValue(r.Context(), HumanClaimsKey, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -89,6 +95,11 @@ func RequireHumanOrMachine(jwtSvc *auth.JWTService) func(http.Handler) http.Hand
 				revoked, err := jwtSvc.CheckJTIRevoked(r.Context(), humanClaims.ID)
 				if err != nil || revoked {
 					response.Unauthorized(w, "invalid or expired token")
+					return
+				}
+				memberRevoked, err := jwtSvc.IsMemberRevoked(r.Context(), humanClaims.WorkspaceID.String(), humanClaims.Subject)
+				if err != nil || memberRevoked {
+					response.Unauthorized(w, "access revoked")
 					return
 				}
 				ctx := context.WithValue(r.Context(), HumanClaimsKey, humanClaims)

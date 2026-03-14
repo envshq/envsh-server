@@ -26,6 +26,10 @@ type AuthRedisStore interface {
 	RevokeJTI(ctx context.Context, jti string, ttl time.Duration) error
 	IsJTIRevoked(ctx context.Context, jti string) (bool, error)
 
+	// Member revocation (instant access removal on workspace member delete)
+	RevokeMemberAccess(ctx context.Context, workspaceID, userID string, ttl time.Duration) error
+	IsMemberRevoked(ctx context.Context, workspaceID, userID string) (bool, error)
+
 	// Brute-force lockout (per email)
 	// IncrEmailFailureCount increments the rolling failure counter for an email
 	// and returns the new count. The counter expires after ttl if not already set.

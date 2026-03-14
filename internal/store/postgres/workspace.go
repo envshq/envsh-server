@@ -160,13 +160,17 @@ func (s *WorkspaceStore) AddMember(ctx context.Context, workspaceID, userID uuid
 }
 
 // RemoveMember removes a user from a workspace.
+// Returns store.ErrNotFound if the member was not found.
 func (s *WorkspaceStore) RemoveMember(ctx context.Context, workspaceID, userID uuid.UUID) error {
-	_, err := s.db.Exec(ctx,
+	result, err := s.db.Exec(ctx,
 		`DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2`,
 		workspaceID, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("removing workspace member: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return store.ErrNotFound
 	}
 	return nil
 }

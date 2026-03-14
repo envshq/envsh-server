@@ -289,6 +289,9 @@ func (h *WorkspaceHandler) RemoveMember(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Revoke access immediately — all existing JWTs for this member will be rejected.
+	_ = h.jwt.RevokeMemberAccess(ctx, workspaceID.String(), targetID.String())
+
 	// Audit log
 	_ = h.audit.AppendAuditLog(ctx, &model.AuditLog{
 		WorkspaceID:  workspaceID,

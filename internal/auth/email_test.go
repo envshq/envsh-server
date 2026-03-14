@@ -21,12 +21,13 @@ func mockHashCode(code string) string {
 // mockAuthStore is a minimal in-memory implementation of AuthRedisStore for auth tests.
 // It is shared across email, JWT, and machine test files in this package.
 type mockAuthStore struct {
-	codes          map[string]mockCodeEntry
-	refreshTokens  map[string]string
-	challenges     map[string]string
-	revokedJTIs    map[string]bool
-	lockouts       map[string]bool
-	failureCounts  map[string]int
+	codes           map[string]mockCodeEntry
+	refreshTokens   map[string]string
+	challenges      map[string]string
+	revokedJTIs     map[string]bool
+	revokedMembers  map[string]bool
+	lockouts        map[string]bool
+	failureCounts   map[string]int
 }
 
 type mockCodeEntry struct {
@@ -36,12 +37,13 @@ type mockCodeEntry struct {
 
 func newMockAuthStore() *mockAuthStore {
 	return &mockAuthStore{
-		codes:         make(map[string]mockCodeEntry),
-		refreshTokens: make(map[string]string),
-		challenges:    make(map[string]string),
-		revokedJTIs:   make(map[string]bool),
-		lockouts:      make(map[string]bool),
-		failureCounts: make(map[string]int),
+		codes:          make(map[string]mockCodeEntry),
+		refreshTokens:  make(map[string]string),
+		challenges:     make(map[string]string),
+		revokedJTIs:    make(map[string]bool),
+		revokedMembers: make(map[string]bool),
+		lockouts:       make(map[string]bool),
+		failureCounts:  make(map[string]int),
 	}
 }
 
@@ -118,6 +120,17 @@ func (m *mockAuthStore) RevokeJTI(_ context.Context, jti string, _ time.Duration
 
 func (m *mockAuthStore) IsJTIRevoked(_ context.Context, jti string) (bool, error) {
 	return m.revokedJTIs[jti], nil
+}
+
+// --- Member revocation ---
+
+func (m *mockAuthStore) RevokeMemberAccess(_ context.Context, workspaceID, userID string, _ time.Duration) error {
+	m.revokedMembers[workspaceID+":"+userID] = true
+	return nil
+}
+
+func (m *mockAuthStore) IsMemberRevoked(_ context.Context, workspaceID, userID string) (bool, error) {
+	return m.revokedMembers[workspaceID+":"+userID], nil
 }
 
 // --- Brute-force lockout ---

@@ -216,6 +216,17 @@ func (s *JWTService) CheckJTIRevoked(ctx context.Context, jti string) (bool, err
 	return revoked, nil
 }
 
+// RevokeMemberAccess marks a workspace member as revoked so all their tokens
+// are rejected immediately. TTL should match the JWT expiry (24h).
+func (s *JWTService) RevokeMemberAccess(ctx context.Context, workspaceID, userID string) error {
+	return s.authStore.RevokeMemberAccess(ctx, workspaceID, userID, 24*time.Hour)
+}
+
+// IsMemberRevoked checks whether a workspace member has been revoked.
+func (s *JWTService) IsMemberRevoked(ctx context.Context, workspaceID, userID string) (bool, error) {
+	return s.authStore.IsMemberRevoked(ctx, workspaceID, userID)
+}
+
 // generateOpaqueToken returns 32 random bytes as a hex string.
 func generateOpaqueToken() (string, error) {
 	b := make([]byte, 32)

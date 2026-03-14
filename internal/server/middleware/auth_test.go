@@ -17,18 +17,20 @@ import (
 
 // mockAuthStore is a minimal in-memory AuthRedisStore for testing.
 type mockAuthStore struct {
-	refreshTokens map[string]string
-	revokedJTIs   map[string]bool
-	lockouts      map[string]bool
-	failureCounts map[string]int
+	refreshTokens  map[string]string
+	revokedJTIs    map[string]bool
+	revokedMembers map[string]bool
+	lockouts       map[string]bool
+	failureCounts  map[string]int
 }
 
 func newMockAuthStore() *mockAuthStore {
 	return &mockAuthStore{
-		refreshTokens: make(map[string]string),
-		revokedJTIs:   make(map[string]bool),
-		lockouts:      make(map[string]bool),
-		failureCounts: make(map[string]int),
+		refreshTokens:  make(map[string]string),
+		revokedJTIs:    make(map[string]bool),
+		revokedMembers: make(map[string]bool),
+		lockouts:       make(map[string]bool),
+		failureCounts:  make(map[string]int),
 	}
 }
 
@@ -72,6 +74,13 @@ func (m *mockAuthStore) SetLockout(_ context.Context, email string, _ time.Durat
 }
 func (m *mockAuthStore) IsLockedOut(_ context.Context, email string) (bool, error) {
 	return m.lockouts[email], nil
+}
+func (m *mockAuthStore) RevokeMemberAccess(_ context.Context, workspaceID, userID string, _ time.Duration) error {
+	m.revokedMembers[workspaceID+":"+userID] = true
+	return nil
+}
+func (m *mockAuthStore) IsMemberRevoked(_ context.Context, workspaceID, userID string) (bool, error) {
+	return m.revokedMembers[workspaceID+":"+userID], nil
 }
 
 func TestRequireHuman_MissingToken(t *testing.T) {
