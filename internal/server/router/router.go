@@ -119,6 +119,7 @@ func New(stores Stores, services Services, redisClient *redis.Client, logger *sl
 		// SSH Keys
 		keyH := handler.NewKeyHandler(stores.Keys, stores.Audit)
 		r.Get("/keys", keyH.List)
+		r.Get("/keys/workspace", keyH.ListWorkspaceKeys)
 		r.Post("/keys", keyH.Register)
 		r.Delete("/keys/{keyID}", keyH.Revoke)
 

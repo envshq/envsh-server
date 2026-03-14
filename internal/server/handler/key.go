@@ -165,6 +165,24 @@ func (h *KeyHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// ListWorkspaceKeys returns all non-revoked SSH keys for all members in the workspace.
+//
+// GET /keys/workspace
+func (h *KeyHandler) ListWorkspaceKeys(w http.ResponseWriter, r *http.Request) {
+	workspaceID, _, ok := requireMember(w, r)
+	if !ok {
+		return
+	}
+
+	keys, err := h.keys.ListKeysByWorkspace(r.Context(), workspaceID)
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]any{"keys": keys})
+}
+
 // inferKeyType infers the key type from the SSH public key string prefix.
 func inferKeyType(publicKey string) string {
 	switch {

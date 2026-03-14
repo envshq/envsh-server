@@ -67,6 +67,7 @@ type KeyStore interface {
 	RegisterKey(ctx context.Context, userID uuid.UUID, publicKey, keyType, fingerprint string, label *string) (*model.SSHKey, error)
 	GetKeyByFingerprint(ctx context.Context, fingerprint string) (*model.SSHKey, error)
 	ListKeys(ctx context.Context, userID uuid.UUID) ([]model.SSHKey, error)
+	ListKeysByWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]model.SSHKey, error)
 	RevokeKey(ctx context.Context, id uuid.UUID) error
 }
 

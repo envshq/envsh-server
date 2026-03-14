@@ -87,6 +87,35 @@ func (s *KeyStore) ListKeys(ctx context.Context, userID uuid.UUID) ([]model.SSHK
 	return keys, nil
 }
 
+// ListKeysByWorkspace returns all non-revoked SSH keys for all members of a workspace.
+func (s *KeyStore) ListKeysByWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]model.SSHKey, error) {
+	rows, err := s.db.Query(ctx,
+		`SELECT k.id, k.user_id, k.public_key, k.key_type, k.fingerprint, k.label, k.created_at, k.revoked_at
+		 FROM ssh_keys k
+		 JOIN workspace_members wm ON wm.user_id = k.user_id
+		 WHERE wm.workspace_id = $1 AND k.revoked_at IS NULL
+		 ORDER BY k.created_at ASC`,
+		workspaceID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing workspace ssh keys: %w", err)
+	}
+	defer rows.Close()
+
+	var keys []model.SSHKey
+	for rows.Next() {
+		var k model.SSHKey
+		if err := rows.Scan(&k.ID, &k.UserID, &k.PublicKey, &k.KeyType, &k.Fingerprint, &k.Label, &k.CreatedAt, &k.RevokedAt); err != nil {
+			return nil, fmt.Errorf("scanning ssh key: %w", err)
+		}
+		keys = append(keys, k)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating ssh keys: %w", err)
+	}
+	return keys, nil
+}
+
 // RevokeKey marks an SSH key as revoked by setting revoked_at to now.
 func (s *KeyStore) RevokeKey(ctx context.Context, id uuid.UUID) error {
 	_, err := s.db.Exec(ctx,
