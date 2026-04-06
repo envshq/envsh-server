@@ -14,9 +14,10 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U envsh" ]
-      interval: 10s
-      timeout: 5s
+      interval: 3s
+      timeout: 3s
       retries: 10
+      start_period: 5s
     networks:
       - envsh-net
 
@@ -29,9 +30,10 @@ services:
       - redis_data:/data
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
-      interval: 10s
-      timeout: 5s
+      interval: 3s
+      timeout: 3s
       retries: 10
+      start_period: 5s
     networks:
       - envsh-net
 
