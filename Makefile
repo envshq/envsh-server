@@ -1,4 +1,4 @@
-.PHONY: build run test lint docker-up docker-down migrate-up migrate-down migrate-create stack-up stack-down stack-logs
+.PHONY: build run test lint docker-up docker-down migrate-up migrate-down migrate-create
 
 BINARY     := bin/server
 DB_URL     ?= postgres://envsh:envsh@localhost:5432/envsh?sslmode=disable
@@ -34,11 +34,3 @@ migrate-create:
 	@test -n "$(NAME)" || (echo "Usage: make migrate-create NAME=description" && exit 1)
 	migrate create -ext sql -dir $(MIGRATIONS) -seq $(NAME)
 
-stack-up:
-	docker compose -f docker-compose.full.yml up -d --build
-
-stack-down:
-	docker compose -f docker-compose.full.yml down
-
-stack-logs:
-	docker compose -f docker-compose.full.yml logs -f server

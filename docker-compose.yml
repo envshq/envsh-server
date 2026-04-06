@@ -1,7 +1,8 @@
-version: "3.9"
+name: envsh-dev
 
 services:
   postgres:
+    container_name: envsh-dev-postgres
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: envsh
@@ -16,8 +17,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - envsh-dev-net
 
   redis:
+    container_name: envsh-dev-redis
     image: redis:7-alpine
     ports:
       - "6379:6379"
@@ -28,7 +32,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - envsh-dev-net
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  envsh-dev-net:
+    name: envsh-dev-net
